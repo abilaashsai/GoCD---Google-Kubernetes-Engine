@@ -77,6 +77,10 @@ resource "helm_release" "gocd" {
   values = [
     <<EOF
     server:
+      env:
+        extraEnvVars:
+          - name: GOCD_PLUGIN_INSTALL_gitlab-auth
+            value: https://github.com/gocd-contrib/github-oauth-authorization-plugin/releases/download/3.0.0-46/github-oauth-authorization-plugin-3.0.0-46.jar
       ingress:
         enabled: true
         hosts:
