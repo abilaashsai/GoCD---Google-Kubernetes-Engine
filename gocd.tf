@@ -34,3 +34,43 @@ resource "google_container_node_pool" "ci_nodes" {
   depends_on = [
     "google_container_cluster.ci"]
 }
+
+data "google_client_config" "current" {}
+
+provider "helm" {
+  kubernetes {
+    load_config_file = false
+    host = "${google_container_cluster.ci.endpoint}"
+    token = "${data.google_client_config.current.access_token}"
+    client_certificate = "${base64decode(google_container_cluster.ci.master_auth.0.client_certificate)}"
+    client_key = "${base64decode(google_container_cluster.ci.master_auth.0.client_key)}"
+    cluster_ca_certificate = "${base64decode(google_container_cluster.ci.master_auth.0.cluster_ca_certificate)}"
+  }
+}
+
+provider "kubernetes" {
+  load_config_file = false
+  host = "${google_container_cluster.ci.endpoint}"
+  token = "${data.google_client_config.current.access_token}"
+  client_certificate = "${base64decode(google_container_cluster.ci.master_auth.0.client_certificate)}"
+  client_key = "${base64decode(google_container_cluster.ci.master_auth.0.client_key)}"
+  cluster_ca_certificate = "${base64decode(google_container_cluster.ci.master_auth.0.cluster_ca_certificate)}"
+}
+
+variable "helm_version" {
+  default = "v3.1.1"
+}
+
+resource "kubernetes_namespace" "gocd_namespace" {
+  metadata {
+    name = "gocd"
+  }
+  depends_on = [google_container_node_pool.ci_nodes]
+}
+
+resource "helm_release" "gocd" {
+  name = "gocd"
+  chart = "stable/gocd"
+  namespace = kubernetes_namespace.gocd_namespace.metadata.0.name
+  depends_on = [kubernetes_namespace.gocd_namespace]
+}
