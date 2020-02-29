@@ -73,4 +73,24 @@ resource "helm_release" "gocd" {
   chart = "stable/gocd"
   namespace = kubernetes_namespace.gocd_namespace.metadata.0.name
   depends_on = [kubernetes_namespace.gocd_namespace]
+  values = [
+    <<EOF
+    server:
+      ingress:
+        enabled: true
+        annotations:
+            kubernetes.io/ingress.class: nginx
+    EOF
+  ]
+}
+
+resource "helm_release" "nginx_ingress" {
+  name = "nginx-ingress"
+  chart = "stable/nginx-ingress"
+
+  set {
+    name = "controller.service.loadBalancerIP"
+    value = "<gocd-public-ip>"
+  }
+  depends_on = [google_container_node_pool.ci_nodes]
 }
