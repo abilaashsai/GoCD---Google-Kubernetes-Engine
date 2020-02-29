@@ -73,13 +73,21 @@ resource "helm_release" "gocd" {
   chart = "stable/gocd"
   namespace = kubernetes_namespace.gocd_namespace.metadata.0.name
   depends_on = [kubernetes_namespace.gocd_namespace]
+
   values = [
     <<EOF
     server:
       ingress:
         enabled: true
+        hosts:
+          - <domain_name>
         annotations:
             kubernetes.io/ingress.class: nginx
+            cert-manager.io/issuer: letsencrypt-prod
+        tls:
+          - secretName: gocd-secret
+            hosts:
+              - <domain_name>
     EOF
   ]
 }
@@ -93,4 +101,23 @@ resource "helm_release" "nginx_ingress" {
     value = "<gocd-public-ip>"
   }
   depends_on = [google_container_node_pool.ci_nodes]
+}
+
+resource "kubernetes_namespace" "cert_namespace" {
+  metadata {
+    name = "cert-manager"
+  }
+  depends_on = [google_container_node_pool.ci_nodes]
+}
+
+data "helm_repository" "jetstack" {
+  name = "jetstack"
+  url = "https://charts.jetstack.io"
+}
+
+resource "helm_release" "cert_manager" {
+  name = "cert-manager"
+  namespace = "cert-manager"
+  chart = "jetstack/cert-manager"
+  version = "v0.13.1"
 }
